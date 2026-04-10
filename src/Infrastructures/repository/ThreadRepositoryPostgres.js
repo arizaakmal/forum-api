@@ -57,7 +57,12 @@ class ThreadRepositoryPostgres extends ThreadRepository {
         CASE
           WHEN comments.is_delete = true THEN '**komentar telah dihapus**'
           ELSE comments.content
-        END AS content
+        END AS content,
+        (
+          SELECT COUNT(*)
+          FROM user_comment_likes
+          WHERE user_comment_likes.comment_id = comments.id
+        )::int AS like_count
         FROM comments
         LEFT JOIN users ON users.id = comments.owner
         WHERE comments.thread_id = $1
@@ -105,7 +110,11 @@ class ThreadRepositoryPostgres extends ThreadRepository {
     }, {});
 
     const commentsWithReplies = commentsResult.rows.map((comment) => ({
-      ...comment,
+      id: comment.id,
+      username: comment.username,
+      date: comment.date,
+      content: comment.content,
+      likeCount: comment.like_count,
       replies: repliesByCommentId[comment.id] || [],
     }));
 

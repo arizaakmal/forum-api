@@ -4,6 +4,7 @@ import AddReplyUseCase from '../../../../Applications/use_case/AddReplyUseCase.j
 import DeleteCommentUseCase from '../../../../Applications/use_case/DeleteCommentUseCase.js';
 import DeleteReplyUseCase from '../../../../Applications/use_case/DeleteReplyUseCase.js';
 import GetThreadUseCase from '../../../../Applications/use_case/GetThreadUseCase.js';
+import ToggleCommentLikeUseCase from '../../../../Applications/use_case/ToggleCommentLikeUseCase.js';
 import AuthenticationTokenManager from '../../../../Applications/security/AuthenticationTokenManager.js';
 import AuthenticationError from '../../../../Commons/exceptions/AuthenticationError.js';
 
@@ -15,6 +16,7 @@ class ThreadsHandler {
     this.postThreadHandler = this.postThreadHandler.bind(this);
     this.postCommentHandler = this.postCommentHandler.bind(this);
     this.postReplyHandler = this.postReplyHandler.bind(this);
+    this.putCommentLikeHandler = this.putCommentLikeHandler.bind(this);
     this.deleteCommentHandler = this.deleteCommentHandler.bind(this);
     this.deleteReplyHandler = this.deleteReplyHandler.bind(this);
   }
@@ -107,6 +109,25 @@ class ThreadsHandler {
       const deleteCommentUseCase = this._container.getInstance(DeleteCommentUseCase.name);
 
       await deleteCommentUseCase.execute({
+        threadId: req.params.threadId,
+        commentId: req.params.commentId,
+        owner,
+      });
+
+      res.status(200).json({
+        status: 'success',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async putCommentLikeHandler(req, res, next) {
+    try {
+      const owner = await this._getOwnerIdFromRequest(req);
+      const toggleCommentLikeUseCase = this._container.getInstance(ToggleCommentLikeUseCase.name);
+
+      await toggleCommentLikeUseCase.execute({
         threadId: req.params.threadId,
         commentId: req.params.commentId,
         owner,

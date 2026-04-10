@@ -2,6 +2,7 @@ import pool from '../../database/postgres/pool.js';
 import UsersTableTestHelper from '../../../../tests/UsersTableTestHelper.js';
 import ThreadsTableTestHelper from '../../../../tests/ThreadsTableTestHelper.js';
 import CommentsTableTestHelper from '../../../../tests/CommentsTableTestHelper.js';
+import UserCommentLikesTableTestHelper from '../../../../tests/UserCommentLikesTableTestHelper.js';
 import CommentRepositoryPostgres from '../CommentRepositoryPostgres.js';
 import NewComment from '../../../Domains/comments/entities/NewComment.js';
 import AddedComment from '../../../Domains/comments/entities/AddedComment.js';
@@ -10,6 +11,7 @@ import AuthorizationError from '../../../Commons/exceptions/AuthorizationError.j
 
 describe('CommentRepositoryPostgres', () => {
   afterEach(async () => {
+    await UserCommentLikesTableTestHelper.cleanTable();
     await CommentsTableTestHelper.cleanTable();
     await ThreadsTableTestHelper.cleanTable();
     await UsersTableTestHelper.cleanTable();
@@ -123,6 +125,56 @@ describe('CommentRepositoryPostgres', () => {
       const comments = await CommentsTableTestHelper.findCommentsById('comment-delete-123');
       expect(comments).toHaveLength(1);
       expect(comments[0].is_delete).toEqual(true);
+    });
+  });
+
+  describe('toggleCommentLike function', () => {
+    it('should persist like when user has not liked comment yet', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-comment-like-123', username: 'dicoding-comment-like-1' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-comment-like-123', owner: 'user-comment-like-123' });
+      await CommentsTableTestHelper.addComment({
+        id: 'comment-like-123',
+        threadId: 'thread-comment-like-123',
+        owner: 'user-comment-like-123',
+      });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, () => '123');
+
+      // Action
+      await commentRepositoryPostgres.toggleCommentLike('comment-like-123', 'user-comment-like-123');
+
+      // Assert
+      const likes = await UserCommentLikesTableTestHelper.findLikeByCommentIdAndOwner(
+        'comment-like-123',
+        'user-comment-like-123',
+      );
+      expect(likes).toHaveLength(1);
+    });
+
+    it('should delete like when user already liked comment', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-comment-like-124', username: 'dicoding-comment-like-2' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-comment-like-124', owner: 'user-comment-like-124' });
+      await CommentsTableTestHelper.addComment({
+        id: 'comment-like-124',
+        threadId: 'thread-comment-like-124',
+        owner: 'user-comment-like-124',
+      });
+      await UserCommentLikesTableTestHelper.addLike({
+        commentId: 'comment-like-124',
+        owner: 'user-comment-like-124',
+      });
+      const commentRepositoryPostgres = new CommentRepositoryPostgres(pool, () => '123');
+
+      // Action
+      await commentRepositoryPostgres.toggleCommentLike('comment-like-124', 'user-comment-like-124');
+
+      // Assert
+      const likes = await UserCommentLikesTableTestHelper.findLikeByCommentIdAndOwner(
+        'comment-like-124',
+        'user-comment-like-124',
+      );
+      expect(likes).toHaveLength(0);
     });
   });
 });

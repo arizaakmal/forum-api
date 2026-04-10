@@ -7,9 +7,11 @@ import NewThread from '../../../Domains/threads/entities/NewThread.js';
 import NotFoundError from '../../../Commons/exceptions/NotFoundError.js';
 import CommentsTableTestHelper from '../../../../tests/CommentsTableTestHelper.js';
 import RepliesTableTestHelper from '../../../../tests/RepliesTableTestHelper.js';
+import UserCommentLikesTableTestHelper from '../../../../tests/UserCommentLikesTableTestHelper.js';
 
 describe('ThreadRepositoryPostgres', () => {
   afterEach(async () => {
+    await UserCommentLikesTableTestHelper.cleanTable();
     await RepliesTableTestHelper.cleanTable();
     await CommentsTableTestHelper.cleanTable();
     await ThreadsTableTestHelper.cleanTable();
@@ -99,6 +101,10 @@ describe('ThreadRepositoryPostgres', () => {
         owner: 'user-thread-detail-123',
         date: '2021-08-08T07:27:21.338Z',
       });
+      await UserCommentLikesTableTestHelper.addLike({
+        commentId: 'comment-detail-123',
+        owner: 'user-thread-detail-123',
+      });
       const threadRepositoryPostgres = new ThreadRepositoryPostgres(pool, () => '123');
 
       // Action
@@ -117,6 +123,7 @@ describe('ThreadRepositoryPostgres', () => {
             username: 'johndoe-thread-detail',
             date: '2021-08-08T07:22:33.555Z',
             content: 'sebuah comment',
+            likeCount: 1,
             replies: [
               {
                 id: 'reply-detail-123',
@@ -131,6 +138,7 @@ describe('ThreadRepositoryPostgres', () => {
             username: 'dicoding-thread-detail',
             date: '2021-08-08T07:26:21.338Z',
             content: 'sebuah comment kedua',
+            likeCount: 0,
             replies: [],
           },
         ],
@@ -202,6 +210,7 @@ describe('ThreadRepositoryPostgres', () => {
           username: 'johndoe-thread-delete-2',
           date: '2021-08-08T07:22:33.555Z',
           content: '**komentar telah dihapus**',
+          likeCount: 0,
           replies: [],
         },
       ]);
@@ -245,6 +254,7 @@ describe('ThreadRepositoryPostgres', () => {
           username: 'johndoe-thread-reply-delete-2',
           date: '2021-08-08T07:22:33.555Z',
           content: 'comment untuk balasan terhapus',
+          likeCount: 0,
           replies: [
             {
               id: 'reply-delete-content-123',

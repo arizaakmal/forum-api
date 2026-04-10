@@ -5,6 +5,7 @@ import AuthenticationsTableTestHelper from '../../../../tests/AuthenticationsTab
 import ThreadsTableTestHelper from '../../../../tests/ThreadsTableTestHelper.js';
 import CommentsTableTestHelper from '../../../../tests/CommentsTableTestHelper.js';
 import RepliesTableTestHelper from '../../../../tests/RepliesTableTestHelper.js';
+import UserCommentLikesTableTestHelper from '../../../../tests/UserCommentLikesTableTestHelper.js';
 import container from '../../container.js';
 import createServer from '../createServer.js';
 import AuthenticationTokenManager from '../../../Applications/security/AuthenticationTokenManager.js';
@@ -15,6 +16,7 @@ describe('HTTP server', () => {
   });
 
   afterEach(async () => {
+    await UserCommentLikesTableTestHelper.cleanTable();
     await RepliesTableTestHelper.cleanTable();
     await CommentsTableTestHelper.cleanTable();
     await ThreadsTableTestHelper.cleanTable();
@@ -449,6 +451,10 @@ describe('HTTP server', () => {
         owner: 'user-get-thread-123',
         date: '2021-08-08T07:23:33.555Z',
       });
+      await UserCommentLikesTableTestHelper.addLike({
+        commentId: 'comment-get-123',
+        owner: 'user-get-thread-123',
+      });
       const app = await createServer(container);
 
       // Action
@@ -470,6 +476,7 @@ describe('HTTP server', () => {
             username: 'johndoe-get-thread',
             date: '2021-08-08T07:22:33.555Z',
             content: 'sebuah comment',
+            likeCount: 1,
             replies: [
               {
                 id: 'reply-get-123',
@@ -495,6 +502,125 @@ describe('HTTP server', () => {
       expect(response.status).toEqual(404);
       expect(response.body.status).toEqual('fail');
       expect(response.body.message).toEqual('thread tidak ditemukan');
+    });
+  });
+
+  describe('when PUT /threads/:threadId/comments/:commentId/likes', () => {
+    it('should response 200 and persist comment like', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-like-comment-123', username: 'dicoding-like-comment' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-like-comment-123', owner: 'user-like-comment-123' });
+      await CommentsTableTestHelper.addComment({
+        id: 'comment-like-comment-123',
+        threadId: 'thread-like-comment-123',
+        owner: 'user-like-comment-123',
+      });
+      const accessToken = await container
+        .getInstance(AuthenticationTokenManager.name)
+        .createAccessToken({ id: 'user-like-comment-123', username: 'dicoding-like-comment' });
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .put('/threads/thread-like-comment-123/comments/comment-like-comment-123/likes')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      // Assert
+      expect(response.status).toEqual(200);
+      expect(response.body.status).toEqual('success');
+
+      const likes = await UserCommentLikesTableTestHelper.findLikeByCommentIdAndOwner(
+        'comment-like-comment-123',
+        'user-like-comment-123',
+      );
+      expect(likes).toHaveLength(1);
+    });
+
+    it('should response 200 and unlike when already liked', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-like-comment-124', username: 'dicoding-like-comment-2' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-like-comment-124', owner: 'user-like-comment-124' });
+      await CommentsTableTestHelper.addComment({
+        id: 'comment-like-comment-124',
+        threadId: 'thread-like-comment-124',
+        owner: 'user-like-comment-124',
+      });
+      await UserCommentLikesTableTestHelper.addLike({
+        commentId: 'comment-like-comment-124',
+        owner: 'user-like-comment-124',
+      });
+      const accessToken = await container
+        .getInstance(AuthenticationTokenManager.name)
+        .createAccessToken({ id: 'user-like-comment-124', username: 'dicoding-like-comment-2' });
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .put('/threads/thread-like-comment-124/comments/comment-like-comment-124/likes')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      // Assert
+      expect(response.status).toEqual(200);
+      expect(response.body.status).toEqual('success');
+
+      const likes = await UserCommentLikesTableTestHelper.findLikeByCommentIdAndOwner(
+        'comment-like-comment-124',
+        'user-like-comment-124',
+      );
+      expect(likes).toHaveLength(0);
+    });
+
+    it('should response 401 when request without authentication', async () => {
+      // Arrange
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .put('/threads/thread-123/comments/comment-123/likes');
+
+      // Assert
+      expect(response.status).toEqual(401);
+      expect(response.body.status).toEqual('fail');
+      expect(response.body.message).toEqual('Missing authentication');
+    });
+
+    it('should response 404 when thread not found', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-like-thread-not-found', username: 'dicoding-like-thread-not-found' });
+      const accessToken = await container
+        .getInstance(AuthenticationTokenManager.name)
+        .createAccessToken({ id: 'user-like-thread-not-found', username: 'dicoding-like-thread-not-found' });
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .put('/threads/thread-not-found/comments/comment-123/likes')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      // Assert
+      expect(response.status).toEqual(404);
+      expect(response.body.status).toEqual('fail');
+      expect(response.body.message).toEqual('thread tidak ditemukan');
+    });
+
+    it('should response 404 when comment not found', async () => {
+      // Arrange
+      await UsersTableTestHelper.addUser({ id: 'user-like-comment-not-found', username: 'dicoding-like-comment-not-found' });
+      await ThreadsTableTestHelper.addThread({ id: 'thread-like-comment-not-found', owner: 'user-like-comment-not-found' });
+      const accessToken = await container
+        .getInstance(AuthenticationTokenManager.name)
+        .createAccessToken({ id: 'user-like-comment-not-found', username: 'dicoding-like-comment-not-found' });
+      const app = await createServer(container);
+
+      // Action
+      const response = await request(app)
+        .put('/threads/thread-like-comment-not-found/comments/comment-not-found/likes')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      // Assert
+      expect(response.status).toEqual(404);
+      expect(response.body.status).toEqual('fail');
+      expect(response.body.message).toEqual('komentar tidak ditemukan');
     });
   });
 
