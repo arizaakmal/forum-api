@@ -1,42 +1,55 @@
-name: Integration Test
-
-on:
-  push:
-    branches: [ main ]
+name: Continuous Integration
+ 
+on: 
   pull_request:
-
+    branches:
+      - master
+ 
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - run: npm install
-
-      - name: Create test env file
-        run: |
-          cat > .test.env <<EOF
-          HOST=localhost
-          PORT=3001
-          PGHOST=${{ secrets.RDS_HOST }}
-          PGUSER=${{ secrets.RDS_USER }}
-          PGDATABASE=${{ secrets.RDS_DATABASE }}
-          PGPASSWORD=${{ secrets.RDS_PASSWORD }}
-          PGPORT=${{ secrets.RDS_PORT }}
-          ACCESS_TOKEN_KEY=test-access-token-key
-          REFRESH_TOKEN_KEY=test-refresh-token-key
-          ACCESS_TOKEN_AGE=3000
-          EOF
-
-      - name: Run migration
-        run: npm run migrate:test
-
-      - name: Run test
-        run: npm test
+ 
+    strategy:
+      matrix:
+        node-version: ['24.11.0']
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+   
+    services:
+      postgres:
+        image: postgres
         env:
-          NODE_ENV: test
+         POSTGRES_USER: postgres
+         POSTGRES_PASSWORD: Ar1zaakm007
+         POSTGRES_DB: forumapi_test
+         
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+ 
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: npm install migrate and test
+      run: |
+        npm ci
+        npm run migrate up
+        npm run test
+      env:
+        CI: true
+        HOST: localhost
+        PORT: 3000
+        PGHOST: localhost
+        PGPORT: 5432
+        PGUSER: postgres
+        PGPASSWORD: Ar1zaakm007
+        PGDATABASE: forumapi_test
+        ACCESS_TOKEN_KEY: secret
+        REFRESH_TOKEN_KEY: terces
+        ACCESS_TOKEN_AGE: 3600
