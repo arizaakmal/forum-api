@@ -9,21 +9,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_DB: forumapi_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: @r1zaakm007
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     steps:
       - uses: actions/checkout@v4
 
@@ -35,21 +20,18 @@ jobs:
 
       - name: Create test env file
         run: |
-          cat > .test.env <<'EOF'
+          cat > .test.env <<EOF
           HOST=localhost
           PORT=3001
-          PGHOST=127.0.0.1
-          PGUSER=postgres
-          PGDATABASE=forumapi_test
-          PGPASSWORD=postgres
-          PGPORT=5432
+          PGHOST=${{ secrets.RDS_HOST }}
+          PGUSER=${{ secrets.RDS_USER }}
+          PGDATABASE=${{ secrets.RDS_DATABASE }}
+          PGPASSWORD=${{ secrets.RDS_PASSWORD }}
+          PGPORT=${{ secrets.RDS_PORT }}
           ACCESS_TOKEN_KEY=test-access-token-key
           REFRESH_TOKEN_KEY=test-refresh-token-key
           ACCESS_TOKEN_AGE=3000
           EOF
-
-      - name: Wait DB
-        run: sleep 5
 
       - name: Run migration
         run: npm run migrate:test
