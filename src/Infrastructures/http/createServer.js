@@ -11,7 +11,15 @@ const createServer = async (container) => {
   // Middleware for parsing JSON
   app.use(express.json());
 
-  // Register routes
+  app.get('/', (req, res) => {
+    void req;
+
+    return res.status(404).json({
+      status: 'success',
+      message: 'Hello World',
+    });
+  });
+
   app.use('/users', users(container));
   app.use('/authentications', authentications(container));
   app.use('/threads', threads(container));
