@@ -14,7 +14,7 @@ const createServer = async (container) => {
   app.get('/', (req, res) => {
     void req;
 
-    return res.status(404).json({
+    return res.status(200).json({
       status: 'success',
       message: 'Hello World',
     });
