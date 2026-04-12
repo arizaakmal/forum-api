@@ -20,6 +20,7 @@ jobs:
         script: |
           cd ~/forum-api
           git pull origin main
-          npm ci --omit=dev --no-audit --no-fund
-          npm run migrate up
-          pm2 restart forum-api
+          npm ci --no-audit --no-fund
+          npm run migrate -- up
+          pm2 restart forum-api || pm2 start src/app.js --name forum-api
+          pm2 save
